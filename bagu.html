@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo Async/Await e JSON Integrado</title>
+</head>
+<body>
+    <h1>Posts de Exemplo (Fetch com Async/Await)</h1>
+    <div id="dados-api">Carregando dados...</div>
+
+    <script>
+        // ----------------------------------------------------
+        // Código JavaScript
+        // ----------------------------------------------------
+
+        /**
+         * Função assíncrona para buscar e exibir dados JSON.
+         * O 'async' torna a função assíncrona, permitindo o uso de 'await'.
+         */
+        async function buscarEExibirDados() {
+            // 1. Define a URL da API/arquivo JSON
+            const url = 'https://jsonplaceholder.typicode.com/posts?_limit=5'; // Pega os 5 primeiros posts
+
+            const outputDiv = document.getElementById('dados-api');
+            outputDiv.innerHTML = 'Buscando dados na API...';
+
+            try {
+                // 2. Aguarda (await) a resposta da requisição 'fetch'
+                const resposta = await fetch(url);
+
+                // 3. Verifica se a resposta foi bem-sucedida (status 200-299)
+                if (!resposta.ok) {
+                    // Se houver erro HTTP (ex: 404, 500), lança um erro
+                    throw new Error(`Erro HTTP! Status: ${resposta.status}`);
+                }
+
+                // 4. Aguarda (await) a conversão do corpo da resposta para objeto JSON
+                const dadosJson = await resposta.json();
+
+                // 5. Processamento e Exibição dos Dados
+                outputDiv.innerHTML = ''; // Limpa a mensagem de carregamento
+
+                // Cria uma lista para exibir os posts
+                const ul = document.createElement('ul');
+
+                dadosJson.forEach(post => {
+                    const li = document.createElement('li');
+                    // Exibe o título e o corpo do post
+                    li.innerHTML = `<strong>${post.title}</strong>: ${post.body.substring(0, 50)}...`;
+                    ul.appendChild(li);
+                });
+
+                outputDiv.appendChild(ul);
+
+                console.log('Dados carregados com sucesso:', dadosJson);
+
+            } catch (erro) {
+                // Bloco 'catch' captura quaisquer erros (de rede ou lançados com 'throw')
+                console.error('Ocorreu um erro ao buscar os dados:', erro);
+                outputDiv.innerHTML = `<p style="color: red;">Falha ao carregar os dados: ${erro.message}</p>`;
+            }
+        }
+
+        // Inicia a função de busca
+        buscarEExibirDados();
+    </script>
+</body>
+</html>

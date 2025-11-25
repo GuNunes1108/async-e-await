@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Async/Await</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #333; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1); }
+        h1 { color: #007bff; text-align: center; margin-bottom: 30px; }
+        #quiz-area { transition: opacity 0.5s; }
+        .question-box { margin-bottom: 25px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9; }
+        .alternatives button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background-color: #e9ecef;
+            color: #333;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .alternatives button:hover:not(:disabled) { background-color: #dee2e6; transform: translateY(-1px); }
+        .alternatives button:disabled { background-color: #ccc; cursor: not-allowed; opacity: 0.8; }
+        #feedback-area { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; min-height: 50px; text-align: center; }
+        .loading { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .correct { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .incorrect { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        #final-screen { text-align: center; display: none; padding: 50px 20px; }
+        #final-screen h2 { color: #28a745; font-size: 2em; }
+        #final-screen p { font-size: 1.2em; margin-bottom: 20px; }
+        #score-display { font-size: 2.5em; color: #007bff; font-weight: bold; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quiz: Dominando `async` e `await`</h1>
+        <div id="quiz-area">
+            <div id="status-display"></div>
+            <div class="question-box">
+                <p id="question-text">Carregando perguntas...</p>
+                <div class="alternatives" id="alternatives-area">
+                    </div>
+            </div>
+            <div id="feedback-area"></div>
+        </div>
+
+        <div id="final-screen">
+            <h2 id="final-title"></h2>
+            <p>Sua Pontuação Final:</p>
+            <div id="score-display">0/10</div>
+            <p id="final-message"></p>
+            <button onclick="iniciarQuiz()" style="background-color: #28a745;">Tentar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DADOS DO QUIZ ---
+        const questions = [
+            {
+                q: "1. Qual a palavra-chave que permite o uso de 'await' dentro de uma função?",
+                a: ['promise', 'then', 'async', 'return'],
+                c: 'async'
+            },
+            {
+                q: "2. O que a função 'await' faz com a execução da função assíncrona?",
+                a: ['Resolve imediatamente a Promise.', 'Causa um erro fatal.', 'Pausa a execução da função até que a Promise seja resolvida.', 'Transforma a Promise em um CallBack.'],
+                c: 'Pausa a execução da função até que a Promise seja resolvida.'
+            },
+            {
+                q: "3. Uma função 'async' sempre retorna implicitamente o quê?",
+                a: ['Um valor síncrono.', 'Uma Promise.', 'Um objeto nulo (null).', 'Uma função de callback.'],
+                c: 'Uma Promise.'
+            },
+            {
+                q: "4. Qual a estrutura ideal para lidar com erros (rejeição de Promise) em um código 'async/await'?",
+                a: ['`.catch()` na chamada da função.', 'Bloco `if/else`.', 'Bloco `try...catch`.', 'Uma função de tratamento global.'],
+                c: 'Bloco `try...catch`.'
+            },
+            {
+                q: "5. O que acontece se você usar 'await' fora de uma função 'async'?",
+                a: ['O código funciona normalmente.', 'Gera um erro de sintaxe.', 'Ele é ignorado pelo motor JS.', 'Faz o código rodar em paralelo.'],
+                c: 'Gera um erro de sintaxe.'
+            },
+            {
+                q: "6. O 'await' pausa a thread principal (o navegador)?",
+                a: ['Sim, por isso é assíncrono.', 'Não, ele só pausa a execução da função `async` atual.', 'Apenas em navegadores antigos.', 'Apenas se a Promise for rejeitada.'],
+                c: 'Não, ele só pausa a execução da função `async` atual.'
+            },
+            {
+                q: "7. O que a expressão `const resultado = await new Promise(resolve => setTimeout(() => resolve('OK'), 100));` atribui à variável 'resultado'?",
+                a: ['A Promise.', 'O valor "OK".', 'A função `setTimeout`.', 'Um erro de tempo esgotado.'],
+                c: 'O valor "OK".'
+            },
+            {
+                q: "8. Para executar duas Promises independentes (P1 e P2) em paralelo com 'async/await', qual o método mais eficiente?",
+                a: ['Usar `await P1` seguido de `await P2`.', 'Usar `Promise.all([P1, P2])`.', 'Usar `P1.then(P2)`.', 'Usar um loop `for`.'],
+                c: 'Usar `Promise.all([P1, P2])`.'
+            },
+            {
+                q: "9. Se uma Promise é rejeitada e você não usa `try...catch` dentro do `async` ou `.catch()` fora, o que acontece?",
+                a: ['O código continua normalmente.', 'A execução da função `async` é interrompida, e pode gerar um `UnhandledPromiseRejection`.', 'O valor do `await` é `undefined`.', 'O navegador trava.'],
+                c: 'A execução da função `async` é interrompida, e pode gerar um `UnhandledPromiseRejection`.'
+            },
+            {
+                q: "10. Qual é a principal vantagem de usar 'async/await' em vez de encadeamento de `.then()` (chaining)?",
+                a: ['Ele sempre é mais rápido.', 'A sintaxe é mais limpa e parece código síncrono.', 'Ele é o único método para requisições de rede.', 'Ele garante que não haverá erros.'],
+                c: 'A sintaxe é mais limpa e parece código síncrono.'
+            }
+        ];
+
+        // --- VARIÁVEIS DE ESTADO ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isProcessing = false; // Flag para prevenir cliques múltiplos
+
+        // --- ELEMENTOS DOM ---
+        const quizArea = document.getElementById('quiz-area');
+        const finalScreen = document.getElementById('final-screen');
+        const questionText = document.getElementById('question-text');
+        const alternativesArea = document.getElementById('alternatives-area');
+        const feedbackArea = document.getElementById('feedback-area');
+        const statusDisplay = document.getElementById('status-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const finalTitle = document.getElementById('final-title');
+        const finalMessage = document.getElementById('final-message');
+
+        // --- FUNÇÕES DE UTILIDADE ASYNC ---
+
+        /**
+         * Simula um atraso de rede/processamento com uma Promise.
+         * @param {number} ms - Tempo em milissegundos.
+         */
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        /**
+         * Renderiza a pergunta atual na tela.
+         */
+        function renderizarPergunta() {
+            if (currentQuestionIndex >= questions.length) {
+                mostrarTelaFinal();
+                return;
+            }
+
+            const qData = questions[currentQuestionIndex];
+            
+            // Limpa o feedback anterior
+            feedbackArea.innerHTML = '';
+            feedbackArea.className = '';
+            
+            // Atualiza o status
+            statusDisplay.innerHTML = `Pergunta ${currentQuestionIndex + 1} de ${questions.length} | Pontuação: ${score}`;
+
+            // Atualiza a pergunta
+            questionText.textContent = qData.q;
+            alternativesArea.innerHTML = '';
+
+            // Cria os botões de alternativa
+            qData.a.forEach(alt => {
+                const button = document.createElement('button');
+                button.textContent = alt;
+                // Usa uma função anônima para passar os argumentos para a função async
+                button.onclick = () => verificarResposta(alt, button);
+                alternativesArea.appendChild(button);
+            });
+        }
+
+        /**
+         * Função Assíncrona para verificar a resposta do usuário.
+         * Usa 'async' para poder usar 'await' e simular o processamento.
+         */
+        async function verificarResposta(respostaSelecionada, botaoClicado) {
+            if (isProcessing) return; // Ignora cliques múltiplos
+            isProcessing = true;
+            
+            const qData = questions[currentQuestionIndex];
+            const isCorreta = respostaSelecionada === qData.c;
+            const buttons = alternativesArea.querySelectorAll('button');
+
+            // 1. Prepara a tela para o AWAIT (Simula latência)
+            buttons.forEach(btn => btn.disabled = true);
+            feedbackArea.className = 'loading';
+            feedbackArea.innerHTML = '🤖 **Processando sua resposta...** (Simulação: `await delay(1200)`)';
+
+            // 2. AWAIT: Pausa a função por 1.2 segundos de forma não-bloqueante
+            try {
+                await delay(1200);
+            } catch (e) {
+                // Em um cenário real, trataria erro de rede aqui
+                console.error("Erro no delay", e);
+            }
+
+
+            // 3. Exibe o Resultado do Feedback
+            if (isCorreta) {
+                score++;
+                feedbackArea.className = 'correct';
+                feedbackArea.innerHTML = '✅ **Correto!** Avance para a próxima pergunta.';
+            } else {
+                feedbackArea.className = 'incorrect';
+                feedbackArea.innerHTML = `❌ **Incorreto.** A resposta correta era: **${qData.c}**`;
+            }
+
+            // Destaca a resposta correta/incorreta no botão
+            buttons.forEach(btn => {
+                if (btn.textContent === qData.c) {
+                    btn.style.backgroundColor = '#28a745'; // Verde para a correta
+                    btn.style.color = 'white';
+                } else if (btn === botaoClicado && !isCorreta) {
+                    botaoClicado.style.backgroundColor = '#dc3545'; // Vermelho para a incorreta
+                    botaoClicado.style.color = 'white';
+                }
+            });
+
+            // 4. Aguarda um pouco antes de ir para a próxima pergunta
+            await delay(2000); 
+
+            // 5. Avança
+            currentQuestionIndex++;
+            isProcessing = false;
+            renderizarPergunta();
+        }
+
+        /**
+         * Exibe a tela de resultado final.
+         */
+        function mostrarTelaFinal() {
+            quizArea.style.display = 'none';
+            finalScreen.style.display = 'block';
+
+            scoreDisplay.textContent = `${score}/${questions.length}`;
+            
+            if (score === questions.length) {
+                finalTitle.textContent = '🎉 Parabéns! DOMÍNIO TOTAL! 🎉';
+                finalMessage.textContent = 'Você acertou todas as 10 perguntas. Seu conhecimento em async/await é excelente!';
+            } else if (score >= 7) {
+                finalTitle.textContent = 'Parabéns! Ótimo Desempenho! 👏';
+                finalMessage.textContent = `Você acertou ${score} de 10. Você está dominando os conceitos de assincronicidade.`;
+            } else {
+                finalTitle.textContent = 'Você Quase Conseguiu! 🤔';
+                finalMessage.textContent = `Você acertou ${score} de 10. Reveja os conceitos de Promises, 'await' e 'try...catch' e tente novamente!`;
+            }
+        }
+
+        /**
+         * Reseta as variáveis e inicia o quiz.
+         */
+        function iniciarQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            isProcessing = false;
+            quizArea.style.display = 'block';
+            finalScreen.style.display = 'none';
+            renderizarPergunta();
+        }
+
+        // Inicia o quiz ao carregar a página
+        iniciarQuiz();
+
+    </script>
+</body>
+</html>
